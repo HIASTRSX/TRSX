@@ -1,0 +1,16 @@
+int var;
+
+int func(int x) {
+	var = var + x;
+	return var;
+}
+
+int main() {
+	// putint 和putch都是Sysy语言的库函数
+	// Sysy 要求库函数不声明就可以使用
+	putint(func(1));
+	var = var * 10;
+	putint(func(2));
+	putch(10);
+	return var;
+}

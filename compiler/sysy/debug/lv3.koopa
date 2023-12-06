@@ -1,0 +1,17 @@
+
+decl @getint(): i32
+decl @getch(): i32
+decl @getarray(*i32): i32
+decl @putint(i32)
+decl @putch(i32)
+decl @putarray(i32, *i32)
+decl @starttime()
+decl @stoptime()
+
+fun @main(): i32 {
+%entry:
+  %0 = mul 2, 3
+  %1 = add 1, %0
+  ret %1
+}
+
