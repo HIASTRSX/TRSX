@@ -1,0 +1,2 @@
+外设：0x4000_0020，配置DMA寄存器，DMA搬移SD数据到ITCM、DTCM、SRAM
+DMA不挂载在总线上

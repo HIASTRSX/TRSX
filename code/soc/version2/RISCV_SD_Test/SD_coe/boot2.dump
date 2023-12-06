@@ -1,0 +1,186 @@
+
+boot.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00001000 <_start>:
+
+_start:
+    #初始化bootloader中断处理函数
+
+	#开中断
+	li t0,8
+    1000:	00800293          	li	t0,8
+	csrw mstatus,t0 
+    1004:	30029073          	csrw	mstatus,t0
+
+	#加载中断处理函数
+	la t0,_boot_intvector
+    1008:	00000297          	auipc	t0,0x0
+    100c:	0b428293          	addi	t0,t0,180 # 10bc <_boot_intvector>
+	csrw mtvec, t0
+    1010:	30529073          	csrw	mtvec,t0
+
+	#搬移SD第1个扇区至ITCM中
+	li a0,0
+    1014:	00000513          	li	a0,0
+	li a1,ITCM_BASE
+    1018:	100005b7          	lui	a1,0x10000
+	li a2,1
+    101c:	00100613          	li	a2,1
+	jal _move_data
+    1020:	0ac000ef          	jal	ra,10cc <_move_data>
+
+
+
+	
+	#获取e_shoff
+	li t0,ITCM_BASE
+    1024:	100002b7          	lui	t0,0x10000
+	lw t1,32(t0)
+    1028:	0202a303          	lw	t1,32(t0) # 10000020 <_move_data+0xfffef54>
+	#获取e_shnum
+	lhu t2,48(t0)
+    102c:	0302d383          	lhu	t2,48(t0)
+	#获取e_shentsize
+	lhu t3,46(t0)
+    1030:	02e2de03          	lhu	t3,46(t0)
+
+	#计算elf文件大小,存入t1寄存器中
+	mul t2,t2,t3
+    1034:	03c383b3          	mul	t2,t2,t3
+	add t1,t1,t2
+    1038:	00730333          	add	t1,t1,t2
+
+	#计算扇区数目,存入a2寄存器中
+	li t2,SECTOR_SIZE
+    103c:	20000393          	li	t2,512
+	div a2,t1,t2
+    1040:	02734633          	div	a2,t1,t2
+	rem t3,t1,t2
+    1044:	02736e33          	rem	t3,t1,t2
+	beq t3,x0,1f
+    1048:	000e0463          	beqz	t3,1050 <_start+0x50>
+	addi a2,a2,1
+    104c:	00160613          	addi	a2,a2,1
+1:
+	#根据需要搬移的数据，判断搬移到ITCM/SDRAM中
+	li t0,SECTOR_SIZE
+    1050:	20000293          	li	t0,512
+	mul t0,a2,t0
+    1054:	025602b3          	mul	t0,a2,t0
+	li t1,ITCM_LENGTH
+    1058:	00010337          	lui	t1,0x10
+
+	bgtu t0, t1, 2f
+    105c:	02536263          	bltu	t1,t0,1080 <_start+0x80>
+	li a0,1
+    1060:	00100513          	li	a0,1
+	li a1,ITCM_BASE
+    1064:	100005b7          	lui	a1,0x10000
+	addi a1,a1,SECTOR_SIZE
+    1068:	20058593          	addi	a1,a1,512 # 10000200 <_move_data+0xffff134>
+	jal _move_data
+    106c:	060000ef          	jal	ra,10cc <_move_data>
+	
+	li t1,ITCM_BASE
+    1070:	10000337          	lui	t1,0x10000
+	li t0,4096
+    1074:	000012b7          	lui	t0,0x1
+	add t1,t1,t0
+    1078:	00530333          	add	t1,t1,t0
+	jr t1
+    107c:	00030067          	jr	t1 # 10000000 <_move_data+0xfffef34>
+
+2:
+	# 搬移到SDRAM区域
+	li a0,0
+    1080:	00000513          	li	a0,0
+	li a1,SDRAM_BASE
+    1084:	300005b7          	lui	a1,0x30000
+	jal _move_data
+    1088:	044000ef          	jal	ra,10cc <_move_data>
+
+	# 搬移图像数据及权重数据
+	li a0,IMAGES_SECTOR
+    108c:	0c800513          	li	a0,200
+	li a1,IMAGES_ADDR
+    1090:	200005b7          	lui	a1,0x20000
+	li a2,IMAGES_SRCTOR_COUNT
+    1094:	01000613          	li	a2,16
+	jal _move_data
+    1098:	034000ef          	jal	ra,10cc <_move_data>
+	li a0,WEIGHT_SECTOR
+    109c:	0dc00513          	li	a0,220
+	li a1,WEIGHT_ADDR
+    10a0:	200025b7          	lui	a1,0x20002
+	li a2,WEIGHT_SECTOR_COUNT
+    10a4:	00600613          	li	a2,6
+	jal _move_data
+    10a8:	024000ef          	jal	ra,10cc <_move_data>
+
+	li t0,SDRAM_BASE
+    10ac:	300002b7          	lui	t0,0x30000
+	li t1,0x1000
+    10b0:	00001337          	lui	t1,0x1
+	add t0,t0,t1
+    10b4:	006282b3          	add	t0,t0,t1
+	jr t0
+    10b8:	00028067          	jr	t0 # 30000000 <_move_data+0x2fffef34>
+
+000010bc <_boot_intvector>:
+
+
+
+#这里默认只会产生DMA搬移数据结束后发出的中断
+_boot_intvector:
+	li t0,DMAEN
+    10bc:	400002b7          	lui	t0,0x40000
+    10c0:	02c28293          	addi	t0,t0,44 # 4000002c <_move_data+0x3fffef60>
+	sw x0,0(t0)
+    10c4:	0002a023          	sw	zero,0(t0)
+	mret
+    10c8:	30200073          	mret
+
+000010cc <_move_data>:
+# 	j _move_a_word
+# 1:	
+# 	ret
+
+	#src
+	li t0,SDStartAddr
+    10cc:	400002b7          	lui	t0,0x40000
+    10d0:	02028293          	addi	t0,t0,32 # 40000020 <_move_data+0x3fffef54>
+	sw a0,0(t0)
+    10d4:	00a2a023          	sw	a0,0(t0)
+	#dec
+	li t0,DestAddr
+    10d8:	400002b7          	lui	t0,0x40000
+    10dc:	02828293          	addi	t0,t0,40 # 40000028 <_move_data+0x3fffef5c>
+	sw a1,0(t0)
+    10e0:	00b2a023          	sw	a1,0(t0)
+	#count
+	li t0,SDCounts
+    10e4:	400002b7          	lui	t0,0x40000
+    10e8:	02428293          	addi	t0,t0,36 # 40000024 <_move_data+0x3fffef58>
+	sw a2,0(t0)
+    10ec:	00c2a023          	sw	a2,0(t0)
+	#enable
+	li t0,DMAEN
+    10f0:	400002b7          	lui	t0,0x40000
+    10f4:	02c28293          	addi	t0,t0,44 # 4000002c <_move_data+0x3fffef60>
+	li t1,1
+    10f8:	00100313          	li	t1,1
+	sw t1,0(t0)
+    10fc:	0062a023          	sw	t1,0(t0)
+
+	li a1,1
+    1100:	00100593          	li	a1,1
+1:
+	lw a0,0(t0)
+    1104:	0002a503          	lw	a0,0(t0)
+	beq a0,a1,1b
+    1108:	feb50ee3          	beq	a0,a1,1104 <_move_data+0x38>
+	ret	
+    110c:	00008067          	ret

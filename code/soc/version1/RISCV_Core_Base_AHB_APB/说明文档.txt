@@ -1,0 +1,1 @@
+通过ROM中boot程序将代码从SD搬移到ITCM/SRAM中执行，接下来需要添加DMA模块
